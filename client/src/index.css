@@ -1,0 +1,109 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand-red: #cc2121;
+  --color-brand-green: #14532d;
+  --color-brand-white: #ffffff;
+}
+
+:root {
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  color: #111827;
+  background-color: #ffffff;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 96px;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background-color: #ffffff;
+  color: #111827;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+@layer base {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-bold text-brand-green;
+  }
+
+  a,
+  button {
+    @apply transition-colors duration-200;
+  }
+}
+
+@layer components {
+  .site-shell {
+    @apply mx-auto max-w-7xl px-4 sm:px-6 lg:px-8;
+  }
+
+  .section-space {
+    @apply py-16 sm:py-20 lg:py-24;
+  }
+
+  .section-card {
+    @apply rounded-[2rem] border border-slate-200/80 bg-white shadow-[0_24px_60px_-28px_rgba(15,23,42,0.22)];
+  }
+
+  .soft-panel {
+    @apply rounded-[1.75rem] border border-slate-200/70 bg-white/90 shadow-[0_18px_45px_-28px_rgba(15,23,42,0.18)];
+  }
+
+  .brand-button {
+    @apply inline-flex items-center justify-center rounded-full bg-brand-green px-6 py-3.5 font-semibold text-white shadow-lg shadow-brand-green/15 transition duration-200 hover:bg-green-800;
+  }
+
+  .brand-button-secondary {
+    @apply inline-flex items-center justify-center rounded-full border border-brand-green/20 bg-white px-6 py-3.5 font-semibold text-slate-900 shadow-sm transition duration-200 hover:border-brand-green/40 hover:bg-green-50 hover:text-slate-900 active:text-slate-900;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
