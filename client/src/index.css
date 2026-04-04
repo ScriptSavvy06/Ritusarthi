@@ -65,6 +65,21 @@ textarea {
   button {
     @apply transition-colors duration-200;
   }
+
+  button,
+  [role='button'] {
+    @apply cursor-pointer;
+  }
+
+  button:disabled,
+  [aria-disabled='true'] {
+    @apply cursor-not-allowed;
+  }
+
+  a:focus-visible,
+  button:focus-visible {
+    @apply outline-none ring-2 ring-brand-green/20 ring-offset-2;
+  }
 }
 
 @layer components {
@@ -85,11 +100,11 @@ textarea {
   }
 
   .brand-button {
-    @apply inline-flex items-center justify-center rounded-full bg-brand-green px-6 py-3.5 font-semibold text-white shadow-lg shadow-brand-green/15 transition duration-200 hover:bg-green-800;
+    @apply inline-flex items-center justify-center rounded-full bg-brand-green px-6 py-3.5 font-semibold text-white shadow-lg shadow-brand-green/15 transition duration-200 hover:bg-green-800 active:bg-green-900;
   }
 
   .brand-button-secondary {
-    @apply inline-flex items-center justify-center rounded-full border border-brand-green/20 bg-white px-6 py-3.5 font-semibold text-slate-900 shadow-sm transition duration-200 hover:border-brand-green/40 hover:bg-green-50 hover:text-slate-900 active:text-slate-900;
+    @apply inline-flex items-center justify-center rounded-full border border-brand-green/20 bg-white px-6 py-3.5 font-semibold text-slate-900 shadow-sm transition duration-200 hover:border-brand-green/40 hover:bg-green-50 hover:text-slate-900 active:bg-slate-50 active:text-slate-900;
   }
 }
 

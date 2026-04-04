@@ -4,16 +4,13 @@ import { api, buildAuthHeaders } from '../lib/api';
 import { clearAdminSession, getAdminToken } from '../utils/adminAuth';
 
 const ProtectedRoute = ({ children }) => {
-  const [authState, setAuthState] = useState(() =>
-    getAdminToken() ? 'checking' : 'unauthorized'
-  );
+  const token = getAdminToken();
+  const [authState, setAuthState] = useState(token ? 'checking' : 'unauthorized');
 
   useEffect(() => {
     let isMounted = true;
-    const token = getAdminToken();
 
     if (!token) {
-      setAuthState('unauthorized');
       return undefined;
     }
 
@@ -26,7 +23,7 @@ const ProtectedRoute = ({ children }) => {
         if (isMounted) {
           setAuthState('authorized');
         }
-      } catch (error) {
+      } catch (_error) {
         clearAdminSession();
 
         if (isMounted) {
@@ -40,7 +37,11 @@ const ProtectedRoute = ({ children }) => {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [token]);
+
+  if (!token || authState === 'unauthorized') {
+    return <Navigate to="/admin/login" replace />;
+  }
 
   if (authState === 'checking') {
     return (
@@ -51,10 +52,6 @@ const ProtectedRoute = ({ children }) => {
         </div>
       </div>
     );
-  }
-
-  if (authState === 'unauthorized') {
-    return <Navigate to="/admin/login" replace />;
   }
 
   return children;

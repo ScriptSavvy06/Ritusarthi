@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Clock3, Mail, MapPin, Phone, Send, ShieldCheck } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import SectionHeading from '../components/SectionHeading';
-import { api, getApiErrorMessage } from '../lib/api';
+import { api, getApiErrorMessage, getResponseData } from '../lib/api';
 import {
   CONTACT_EMAIL,
   CONTACT_PHONE_DISPLAY,
@@ -41,14 +41,14 @@ const Contact = () => {
     const loadPackages = async () => {
       try {
         const response = await api.get('/api/packages');
-        const packageList = Array.isArray(response.data) ? response.data : [];
+        const packageList = getResponseData(response, []);
 
         if (isMounted && packageList.length > 0) {
           setAvailablePackages(
             packageList.map(normalizePackageForClient).map((pkg) => pkg.title)
           );
         }
-      } catch (loadError) {
+      } catch (_loadError) {
         if (isMounted) {
           setAvailablePackages(PACKAGE_OPTIONS);
         }
@@ -90,19 +90,16 @@ const Contact = () => {
     }
 
     try {
-      const response = await api.post('/api/enquiries', formData);
-
-      if (response.status === 201) {
-        setSubmitted(true);
-        setFormData({
-          name: '',
-          email: '',
-          phone: '',
-          travelDate: '',
-          message: '',
-          package: ''
-        });
-      }
+      await api.post('/api/enquiries', formData);
+      setSubmitted(true);
+      setFormData({
+        name: '',
+        email: '',
+        phone: '',
+        travelDate: '',
+        message: '',
+        package: ''
+      });
     } catch (err) {
       setError(
         getApiErrorMessage(

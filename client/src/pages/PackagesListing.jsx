@@ -3,7 +3,7 @@ import { Filter, PhoneCall, Search, ShieldCheck } from 'lucide-react';
 import { motion, useReducedMotion } from 'framer-motion';
 import PackageCard from '../components/PackageCard';
 import SectionHeading from '../components/SectionHeading';
-import { api } from '../lib/api';
+import { api, getResponseData } from '../lib/api';
 import { PACKAGE_PAGE_FAQS, SERVICE_CATEGORIES } from '../data/brandContent';
 import { CONTACT_PHONE_HREF } from '../constants/site';
 import { normalizePackageForClient } from '../utils/packages';
@@ -25,12 +25,12 @@ const PackagesListing = () => {
 
       try {
         const response = await api.get('/api/packages');
-        const packageList = Array.isArray(response.data) ? response.data : [];
+        const packageList = getResponseData(response, []);
 
         if (isMounted) {
           setPackages(packageList.map(normalizePackageForClient));
         }
-      } catch (loadError) {
+      } catch (_loadError) {
         if (isMounted) {
           setError('Unable to load packages right now.');
           setPackages([]);

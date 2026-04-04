@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Lock, User, Eye, EyeOff } from 'lucide-react';
-import { api, getApiErrorMessage } from '../lib/api';
+import { api, getApiErrorMessage, getResponseData } from '../lib/api';
 import { getAdminToken, setAdminSession } from '../utils/adminAuth';
 import { SITE_NAME } from '../constants/site';
 
@@ -30,7 +30,7 @@ const AdminLogin = () => {
         password
       });
 
-      setAdminSession(response.data);
+      setAdminSession(getResponseData(response, {}));
       navigate('/admin/panel', { replace: true });
     } catch (err) {
       setError(getApiErrorMessage(err, 'Login failed. Please try again.'));

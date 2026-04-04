@@ -13,7 +13,7 @@ import { motion, useReducedMotion } from 'framer-motion';
 import Hero from '../components/Hero';
 import PackageCard from '../components/PackageCard';
 import SectionHeading from '../components/SectionHeading';
-import { api } from '../lib/api';
+import { api, getResponseData } from '../lib/api';
 import { FALLBACK_PACKAGES } from '../data/packageCatalog';
 import {
   PLANNING_STEPS,
@@ -35,7 +35,7 @@ const Home = () => {
     const loadFeaturedPackages = async () => {
       try {
         const response = await api.get('/api/packages');
-        const packageList = Array.isArray(response.data) ? response.data : [];
+        const packageList = getResponseData(response, []);
         const normalizedPackages = packageList.map(normalizePackageForClient);
         const featuredList = normalizedPackages.filter((pkg) => pkg.isFeatured).slice(0, 3);
 
@@ -48,7 +48,7 @@ const Home = () => {
           setFeaturedPackages(normalizedPackages.slice(0, 3));
           return;
         }
-      } catch (error) {
+      } catch (_error) {
         // Use curated fallback packages if the API is unavailable.
       }
 

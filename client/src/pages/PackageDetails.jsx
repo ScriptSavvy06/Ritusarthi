@@ -12,9 +12,10 @@ import {
   XCircle
 } from 'lucide-react';
 import { motion, useReducedMotion } from 'framer-motion';
+import BookingModal from '../components/BookingModal';
 import PackageCard from '../components/PackageCard';
 import SectionHeading from '../components/SectionHeading';
-import { api } from '../lib/api';
+import { api, getResponseData } from '../lib/api';
 import { CONTACT_PHONE_DISPLAY, CONTACT_PHONE_HREF } from '../constants/site';
 import { TRUST_PILLARS } from '../data/brandContent';
 import { normalizePackageForClient } from '../utils/packages';
@@ -26,6 +27,7 @@ const PackageDetails = () => {
   const [relatedPackages, setRelatedPackages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -38,9 +40,9 @@ const PackageDetails = () => {
         const response = await api.get(`/api/packages/${packageIdentifier}`);
 
         if (isMounted) {
-          setPkg(normalizePackageForClient(response.data));
+          setPkg(normalizePackageForClient(getResponseData(response)));
         }
-      } catch (loadError) {
+      } catch (_loadError) {
         if (isMounted) {
           setPkg(null);
           setError('Package not found or unavailable right now.');
@@ -70,7 +72,7 @@ const PackageDetails = () => {
 
       try {
         const response = await api.get('/api/packages');
-        const packageList = Array.isArray(response.data) ? response.data : [];
+        const packageList = getResponseData(response, []);
         const normalizedPackages = packageList.map(normalizePackageForClient);
         const related = normalizedPackages
           .filter((item) => item._id !== pkg._id && item.category === pkg.category)
@@ -79,7 +81,7 @@ const PackageDetails = () => {
         if (isMounted) {
           setRelatedPackages(related);
         }
-      } catch (loadError) {
+      } catch (_loadError) {
         if (isMounted) {
           setRelatedPackages([]);
         }
@@ -326,6 +328,14 @@ const PackageDetails = () => {
                   {ctaText}
                 </Link>
 
+                <button
+                  type="button"
+                  onClick={() => setIsBookingModalOpen(true)}
+                  className="mt-4 flex w-full items-center justify-center rounded-full bg-brand-green py-4 font-semibold text-white shadow-lg shadow-brand-green/15 transition hover:bg-green-800"
+                >
+                  Book Now
+                </button>
+
                 <a
                   href={CONTACT_PHONE_HREF}
                   className="mt-4 flex w-full items-center justify-center rounded-full border border-brand-green/20 bg-white py-4 font-semibold text-slate-900 transition hover:bg-green-50"
@@ -371,6 +381,12 @@ const PackageDetails = () => {
           </div>
         </section>
       ) : null}
+
+      <BookingModal
+        isOpen={isBookingModalOpen}
+        onClose={() => setIsBookingModalOpen(false)}
+        pkg={pkg}
+      />
     </div>
   );
 };

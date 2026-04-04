@@ -1,3 +1,11 @@
+const {
+  cleanString,
+  isValidEmail,
+  isValidName,
+  isValidPhone,
+  normalizePhone
+} = require('./contactValidation');
+
 const ENQUIRY_STATUSES = ['new', 'contacted', 'closed'];
 
 const STATUS_ALIASES = {
@@ -8,13 +16,6 @@ const STATUS_ALIASES = {
   Contacted: 'contacted',
   Closed: 'closed'
 };
-
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const PHONE_REGEX = /^[0-9+\-\s()]{7,20}$/;
-
-function cleanString(value) {
-  return typeof value === 'string' ? value.trim() : '';
-}
 
 function normalizeStatus(value) {
   if (!value) {
@@ -33,8 +34,9 @@ function validateEnquiryPayload(payload, options = {}) {
     const name = cleanString(payload.name);
     if (!name) {
       errors.name = 'Name is required.';
-    } else if (name.length < 2) {
-      errors.name = 'Name must be at least 2 characters long.';
+    } else if (!isValidName(name)) {
+      errors.name =
+        'Please provide a valid full name using letters, spaces, and common punctuation only.';
     } else {
       data.name = name;
     }
@@ -44,7 +46,7 @@ function validateEnquiryPayload(payload, options = {}) {
     const email = cleanString(payload.email).toLowerCase();
     if (!email) {
       errors.email = 'Email is required.';
-    } else if (!EMAIL_REGEX.test(email)) {
+    } else if (!isValidEmail(email)) {
       errors.email = 'Please provide a valid email address.';
     } else {
       data.email = email;
@@ -52,10 +54,10 @@ function validateEnquiryPayload(payload, options = {}) {
   }
 
   if (!statusOnly && (!partial || payload.phone !== undefined)) {
-    const phone = cleanString(payload.phone);
+    const phone = normalizePhone(payload.phone);
     if (!phone) {
       errors.phone = 'Phone number is required.';
-    } else if (!PHONE_REGEX.test(phone)) {
+    } else if (!isValidPhone(phone)) {
       errors.phone = 'Please provide a valid phone number.';
     } else {
       data.phone = phone;

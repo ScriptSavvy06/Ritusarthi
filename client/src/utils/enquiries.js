@@ -3,6 +3,9 @@ export const ENQUIRY_STATUS_OPTIONS = [
   { value: 'contacted', label: 'Contacted' },
   { value: 'closed', label: 'Closed' }
 ];
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PHONE_REGEX = /^[0-9+\-\s()]{7,20}$/;
+const NAME_REGEX = /^[A-Za-z][A-Za-z\s.'-]*$/;
 
 const ENQUIRY_STATUS_LABELS = Object.fromEntries(
   ENQUIRY_STATUS_OPTIONS.map((status) => [status.value, status.label])
@@ -76,20 +79,35 @@ export function formatDateOnly(value) {
 
 export function validateEnquiryFormData(formData) {
   const errors = {};
+  const name = String(formData.name || '').trim();
+  const email = String(formData.email || '').trim().toLowerCase();
+  const phone = String(formData.phone || '').trim();
+  const phoneDigits = phone.replace(/\D/g, '');
 
-  if (!formData.name.trim()) {
+  if (!name) {
     errors.name = 'Name is required.';
+  } else if (name.length < 2 || name.length > 80 || !NAME_REGEX.test(name)) {
+    errors.name =
+      'Please enter a valid full name using letters, spaces, and common punctuation.';
   }
 
-  if (!formData.email.trim()) {
+  if (!email) {
     errors.email = 'Email is required.';
+  } else if (!EMAIL_REGEX.test(email)) {
+    errors.email = 'Please provide a valid email address.';
   }
 
-  if (!formData.phone.trim()) {
+  if (!phone) {
     errors.phone = 'Phone number is required.';
+  } else if (
+    !PHONE_REGEX.test(phone) ||
+    phoneDigits.length < 7 ||
+    phoneDigits.length > 15
+  ) {
+    errors.phone = 'Please provide a valid phone number.';
   }
 
-  if (formData.message.trim().length > 1000) {
+  if (String(formData.message || '').trim().length > 1000) {
     errors.message = 'Message must be 1000 characters or fewer.';
   }
 

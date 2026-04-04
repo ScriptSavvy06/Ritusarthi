@@ -22,7 +22,7 @@ export function getStoredAdmin() {
 
   try {
     return JSON.parse(rawValue);
-  } catch (error) {
+  } catch (_error) {
     return null;
   }
 }

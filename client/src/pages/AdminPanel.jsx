@@ -1,8 +1,9 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Boxes,
   CalendarDays,
+  CreditCard,
   Download,
   LogOut,
   Mail,
@@ -16,7 +17,12 @@ import {
   Trash2,
   UserRound
 } from 'lucide-react';
-import { api, buildAuthHeaders, getApiErrorMessage } from '../lib/api';
+import {
+  api,
+  buildAuthHeaders,
+  getApiErrorMessage,
+  getResponseData
+} from '../lib/api';
 import {
   clearAdminSession,
   getAdminToken,
@@ -37,6 +43,13 @@ import {
   mapPackageToForm,
   normalizePackageForClient
 } from '../utils/packages';
+import {
+  formatBookingAmount,
+  formatBookingDateTime,
+  getBookingStatusClasses,
+  getBookingStatusLabel,
+  normalizeBookingForClient
+} from '../utils/bookings';
 import PackageFormPanel from '../components/admin/PackageFormPanel';
 import { SITE_NAME } from '../constants/site';
 
@@ -53,6 +66,7 @@ const AdminPanel = () => {
   const [activeTab, setActiveTab] = useState('enquiries');
   const [enquiries, setEnquiries] = useState([]);
   const [packages, setPackages] = useState([]);
+  const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -65,6 +79,7 @@ const AdminPanel = () => {
   const [packageSaving, setPackageSaving] = useState(false);
   const [packageFormError, setPackageFormError] = useState('');
   const [packageSearch, setPackageSearch] = useState('');
+  const [bookingSearch, setBookingSearch] = useState('');
   const [isPackageFormOpen, setIsPackageFormOpen] = useState(false);
   const [packageFormMode, setPackageFormMode] = useState('create');
   const [editingPackageId, setEditingPackageId] = useState('');
@@ -91,6 +106,16 @@ const AdminPanel = () => {
       activeCount: packages.filter((pkg) => pkg.isActive).length
     };
   }, [packages]);
+
+  const bookingStats = useMemo(() => {
+    const paidBookings = bookings.filter((booking) => booking.paymentStatus === 'paid');
+
+    return {
+      total: bookings.length,
+      paidCount: paidBookings.length,
+      revenue: paidBookings.reduce((sum, booking) => sum + (Number(booking.price) || 0), 0)
+    };
+  }, [bookings]);
 
   const filteredEnquiries = useMemo(() => {
     const query = enquirySearch.trim().toLowerCase();
@@ -146,18 +171,41 @@ const AdminPanel = () => {
     );
   }, [packageSearch, packages]);
 
+  const filteredBookings = useMemo(() => {
+    const query = bookingSearch.trim().toLowerCase();
+
+    if (!query) {
+      return bookings;
+    }
+
+    return bookings.filter((booking) =>
+      [
+        booking.userName,
+        booking.email,
+        booking.phone,
+        booking.packageName,
+        booking.paymentStatus,
+        booking.orderId,
+        booking.paymentId
+      ]
+        .filter(Boolean)
+        .some((value) => value.toLowerCase().includes(query))
+    );
+  }, [bookingSearch, bookings]);
+
   const hasEnquiryFilters = Boolean(
     enquirySearch.trim() || enquiryStatusFilter !== 'all'
   );
 
   const hasPackageSearch = Boolean(packageSearch.trim());
+  const hasBookingSearch = Boolean(bookingSearch.trim());
 
-  const handleUnauthorized = () => {
+  const handleUnauthorized = useCallback(() => {
     clearAdminSession();
     navigate('/admin/login', { replace: true });
-  };
+  }, [navigate]);
 
-  const loadDashboard = async () => {
+  const loadDashboard = useCallback(async () => {
     if (!token) {
       handleUnauthorized();
       return;
@@ -167,23 +215,31 @@ const AdminPanel = () => {
     setError('');
 
     try {
-      const [enquiriesResponse, packagesResponse] = await Promise.all([
+      const [enquiriesResponse, packagesResponse, bookingsResponse] = await Promise.all([
         api.get('/api/enquiries', {
           headers: buildAuthHeaders(token)
         }),
         api.get('/api/packages/admin/all', {
           headers: buildAuthHeaders(token)
+        }),
+        api.get('/api/admin/bookings', {
+          headers: buildAuthHeaders(token)
         })
       ]);
 
-      setEnquiries(Array.isArray(enquiriesResponse.data) ? enquiriesResponse.data : []);
+      const enquiryList = getResponseData(enquiriesResponse, []);
+      const packageList = getResponseData(packagesResponse, []);
+      const bookingList = getResponseData(bookingsResponse, []);
+
+      setEnquiries(Array.isArray(enquiryList) ? enquiryList : []);
       setPackages(
-        Array.isArray(packagesResponse.data)
-          ? packagesResponse.data.map(normalizePackageForClient)
-          : []
+        Array.isArray(packageList) ? packageList.map(normalizePackageForClient) : []
+      );
+      setBookings(
+        Array.isArray(bookingList) ? bookingList.map(normalizeBookingForClient) : []
       );
     } catch (err) {
-      if (err.response?.status === 401) {
+      if ([401, 403].includes(err.response?.status)) {
         handleUnauthorized();
         return;
       }
@@ -192,11 +248,11 @@ const AdminPanel = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [handleUnauthorized, token]);
 
   useEffect(() => {
-    loadDashboard();
-  }, []);
+    void loadDashboard();
+  }, [loadDashboard]);
 
   const handleLogout = () => {
     clearAdminSession();
@@ -212,14 +268,15 @@ const AdminPanel = () => {
         { status },
         { headers: buildAuthHeaders(token) }
       );
+      const updatedEnquiry = getResponseData(response);
 
       setEnquiries((currentEnquiries) =>
         currentEnquiries.map((enquiry) =>
-          enquiry._id === enquiryId ? response.data : enquiry
+          enquiry._id === enquiryId ? updatedEnquiry : enquiry
         )
       );
     } catch (err) {
-      if (err.response?.status === 401) {
+      if ([401, 403].includes(err.response?.status)) {
         handleUnauthorized();
         return;
       }
@@ -246,7 +303,7 @@ const AdminPanel = () => {
         currentEnquiries.filter((enquiry) => enquiry._id !== enquiryId)
       );
     } catch (err) {
-      if (err.response?.status === 401) {
+      if ([401, 403].includes(err.response?.status)) {
         handleUnauthorized();
         return;
       }
@@ -430,7 +487,7 @@ const AdminPanel = () => {
               headers: buildAuthHeaders(token)
             });
 
-      const savedPackage = normalizePackageForClient(response.data);
+      const savedPackage = normalizePackageForClient(getResponseData(response));
 
       setPackages((currentPackages) => {
         if (packageFormMode === 'create') {
@@ -444,7 +501,7 @@ const AdminPanel = () => {
 
       closePackageForm();
     } catch (err) {
-      if (err.response?.status === 401) {
+      if ([401, 403].includes(err.response?.status)) {
         handleUnauthorized();
         return;
       }
@@ -475,7 +532,7 @@ const AdminPanel = () => {
         closePackageForm();
       }
     } catch (err) {
-      if (err.response?.status === 401) {
+      if ([401, 403].includes(err.response?.status)) {
         handleUnauthorized();
         return;
       }
@@ -536,6 +593,12 @@ const AdminPanel = () => {
             value={packageStats.featuredCount}
             accent="emerald"
           />
+          <DashboardStat label="Total Bookings" value={bookingStats.total} accent="blue" />
+          <DashboardStat
+            label="Revenue"
+            value={`Rs ${formatBookingAmount(bookingStats.revenue)}`}
+            accent="green"
+          />
         </section>
 
         <section className="mt-8 flex flex-wrap gap-3">
@@ -550,6 +613,12 @@ const AdminPanel = () => {
             onClick={() => setActiveTab('packages')}
             icon={<Boxes size={16} />}
             label="Packages"
+          />
+          <TabButton
+            active={activeTab === 'bookings'}
+            onClick={() => setActiveTab('bookings')}
+            icon={<CreditCard size={16} />}
+            label="Bookings"
           />
         </section>
 
@@ -736,6 +805,127 @@ const AdminPanel = () => {
                         </tr>
                       );
                     })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        ) : activeTab === 'bookings' ? (
+          <section className="mt-8 rounded-[2rem] border border-slate-200 bg-white shadow-sm">
+            <div className="flex flex-col gap-4 border-b border-slate-200 px-6 py-5">
+              <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+                <div>
+                  <h2 className="text-xl font-bold text-slate-900">Booking Management</h2>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Review confirmed and pending package bookings without leaving the
+                    current dashboard.
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    onClick={loadDashboard}
+                    className="inline-flex items-center justify-center rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+                  >
+                    <RefreshCw size={16} className="mr-2" />
+                    Refresh
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)] lg:w-full lg:max-w-xl">
+                  <div className="relative">
+                    <Search
+                      size={16}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                    />
+                    <input
+                      type="text"
+                      value={bookingSearch}
+                      onChange={(event) => setBookingSearch(event.target.value)}
+                      placeholder="Search by customer, package, phone, email, or payment status"
+                      className="w-full rounded-xl border border-slate-300 py-2.5 pl-10 pr-4 text-sm outline-none focus:border-emerald-500"
+                    />
+                  </div>
+                </div>
+
+                <p className="text-sm text-slate-500">
+                  Showing {filteredBookings.length} of {bookings.length} bookings
+                </p>
+              </div>
+            </div>
+
+            {loading ? (
+              <LoadingState message="Loading bookings..." />
+            ) : filteredBookings.length === 0 ? (
+              <EmptyState
+                icon={<CreditCard className="mx-auto text-slate-300" size={44} />}
+                title={hasBookingSearch ? 'No matching bookings' : 'No bookings yet'}
+                description={
+                  hasBookingSearch
+                    ? 'Try a different search term to find the booking you need.'
+                    : 'New package bookings will appear here automatically after checkout starts.'
+                }
+              />
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-slate-200">
+                  <thead className="bg-slate-50">
+                    <tr className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      <th className="px-6 py-4">Customer</th>
+                      <th className="px-6 py-4">Package</th>
+                      <th className="px-6 py-4">Amount</th>
+                      <th className="px-6 py-4">Payment Status</th>
+                      <th className="px-6 py-4">Date</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {filteredBookings.map((booking) => (
+                      <tr key={booking.id || booking._id} className="align-top">
+                        <td className="px-6 py-5">
+                          <div className="font-semibold text-slate-900">{booking.userName}</div>
+                          <div className="mt-2 space-y-1 text-sm text-slate-500">
+                            <div className="flex items-center gap-2">
+                              <Phone size={14} />
+                              {booking.phone}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Mail size={14} />
+                              {booking.email}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-5 text-sm font-medium text-slate-700">
+                          <div>{booking.packageName}</div>
+                          {booking.orderId ? (
+                            <div className="mt-2 text-xs text-slate-500">
+                              Order: {booking.orderId}
+                            </div>
+                          ) : null}
+                          {booking.paymentId ? (
+                            <div className="mt-1 text-xs text-slate-500">
+                              Payment: {booking.paymentId}
+                            </div>
+                          ) : null}
+                        </td>
+                        <td className="px-6 py-5 text-sm font-semibold text-slate-900">
+                          Rs {formatBookingAmount(booking.price)}
+                        </td>
+                        <td className="px-6 py-5">
+                          <span
+                            className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${getBookingStatusClasses(
+                              booking.paymentStatus
+                            )}`}
+                          >
+                            {getBookingStatusLabel(booking.paymentStatus)}
+                          </span>
+                        </td>
+                        <td className="px-6 py-5 text-sm text-slate-500">
+                          {formatBookingDateTime(booking.bookingDate || booking.createdAt)}
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>

@@ -1,6 +1,8 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
+const SALT_ROUNDS = 10;
+
 const adminSchema = new mongoose.Schema(
   {
     username: {
@@ -22,18 +24,29 @@ const adminSchema = new mongoose.Schema(
       unique: true,
       lowercase: true,
       trim: true
+    },
+    role: {
+      type: String,
+      enum: ['admin'],
+      default: 'admin'
     }
   },
   { timestamps: true }
 );
 
-adminSchema.pre('save', async function () {
-  if (!this.isModified('password')) {
-    return;
-  }
+adminSchema.pre('save', async function (next) {
+  try {
+    if (!this.isModified('password')) {
+      next();
+      return;
+    }
 
-  const salt = await bcrypt.genSalt(10);
-  this.password = await bcrypt.hash(this.password, salt);
+    const salt = await bcrypt.genSalt(SALT_ROUNDS);
+    this.password = await bcrypt.hash(this.password, salt);
+    next();
+  } catch (error) {
+    next(error);
+  }
 });
 
 adminSchema.methods.comparePassword = async function (candidatePassword) {
