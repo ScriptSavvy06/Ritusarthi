@@ -4,7 +4,7 @@ const configuredApiUrl = import.meta.env.VITE_API_URL?.trim();
 
 export const API_BASE_URL = configuredApiUrl
   ? configuredApiUrl.replace(/\/+$/, '')
-  : 'http://localhost:5000';
+  : 'https://ritusarthi-backend.onrender.com';
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
